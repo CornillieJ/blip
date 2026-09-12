@@ -15,7 +15,13 @@ Item {
 
   readonly property string pluginId: "io.github.yogeshojha.blip"
   readonly property string home: Quickshell.env("HOME")
-  readonly property string pluginDir: manifest && manifest.__sourceDir ? String(manifest.__sourceDir) : ""
+  readonly property string pluginDir: {
+    // Third-party manifests do not expose the host's private source directory
+    // (Omarchy 4.0.3 sanitizes it), so derive the directory from this file.
+    var sourceUrl = String(Qt.resolvedUrl("./"))
+    return sourceUrl.indexOf("file://") === 0
+      ? decodeURIComponent(sourceUrl.slice(7)).replace(/\/$/, "") : ""
+  }
   readonly property string userDir: home + "/.config/omarchy/blip"
 
   readonly property var settings: {
