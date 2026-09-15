@@ -7,11 +7,14 @@ import "Detect.js" as Detect
 import "Actions.js" as Actions
 import "Transforms.js" as Transforms
 
+
 Item {
   id: service
 
   property var shell: null
   property var manifest: null
+
+  LocalSettings { id: localSettings }
 
   readonly property string pluginId: "io.github.yogeshojha.blip"
   readonly property string home: Quickshell.env("HOME")
@@ -25,7 +28,9 @@ Item {
   readonly property string userDir: home + "/.config/omarchy/blip"
 
   readonly property var settings: {
-    var config = shell ? shell.shellConfig : null
+    var config = shell && shell.shellConfig
+      ? shell.shellConfig
+      : localSettings.config
     return Util.isPlainObject(config) ? entryFor(config) : ({})
   }
 
@@ -53,13 +58,35 @@ Item {
     var defaults = manifest && Util.isPlainObject(manifest.barWidget) ? manifest.barWidget.defaults : null
     return defaults ? defaults[key] : undefined
   }
-
   function persist(key, value) {
     if (!shell || typeof shell.updateEntryInline !== "function") return
-    var next = {}
-    for (var existing in settings) next[existing] = settings[existing]
-    next[key] = value
-    shell.updateEntryInline(pluginId, next)
+
+    function write() {
+      var next = {}
+      for (var existing in settings) next[existing] = settings[existing]
+      next[key] = value
+
+      localSettings.remember(next)
+      shell.updateEntryInline(pluginId, next)
+    }
+
+    if (localSettings.loaded) {
+      write()
+    } else {
+      // Wait for the initial shell.json read first
+      var timer = Qt.createQmlObject(
+        'import QtQuick; Timer { interval: 0; repeat: true }',
+        service
+      )
+      var check = function() {
+        if (!localSettings.loaded) return
+        timer.stop()
+        timer.destroy()
+        write()
+      }
+      timer.triggered.connect(check)
+      timer.start()
+    }
   }
 
   readonly property bool armed: setting("armed") !== false
