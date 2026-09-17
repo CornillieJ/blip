@@ -30,7 +30,6 @@ Item {
   property string notice: ""
   property bool busy: false
 
-  property bool focusPrimed: false
   property bool morphEnabled: false
 
   // Moved forward on every change a click could be racing; see pressPointer.
@@ -113,10 +112,8 @@ Item {
     opened = false
     keyboardActive = false
     trusted = false
-    focusPrimed = false
     busy = false
     morphEnabled = false
-    primeTimer.stop()
     morphTimer.stop()
     dwellTimer.stop()
     noticeTimer.stop()
@@ -126,12 +123,7 @@ Item {
     keyboardActive = active
     if (active) {
       if (index < 0) index = 0
-      focusPrimed = false
-      primeTimer.restart()
       Qt.callLater(function() { keys.forceActiveFocus() })
-    } else {
-      primeTimer.stop()
-      focusPrimed = false
     }
     restartDwell()
   }
@@ -316,12 +308,6 @@ Item {
   }
 
   Timer {
-    id: primeTimer
-    interval: 75
-    onTriggered: if (root.opened && root.keyboardActive) root.focusPrimed = true
-  }
-
-  Timer {
     id: morphTimer
     interval: 200
     onTriggered: root.morphEnabled = root.opened
@@ -397,8 +383,9 @@ Item {
     color: "transparent"
     WlrLayershell.namespace: "blip"
     WlrLayershell.layer: WlrLayer.Overlay
+    // Exclusive for the whole keyboard-active span: under follow_mouse, OnDemand loses focus to whatever's under a stray pointer move.
     WlrLayershell.keyboardFocus: root.opened && root.keyboardActive
-      ? (root.focusPrimed ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.Exclusive)
+      ? WlrKeyboardFocus.Exclusive
       : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
     mask: Region { item: root.opened ? card : null }
